@@ -1,6 +1,6 @@
-Package: jmk_functions
+Package: antiboydy
 Title: JMKotah's R Functions
-Version: 0.0.0.9000
+Version: 0.0.0.9001
 Authors@R: 
     person("Janssen", "Kotah", , "j.m.kotah@umcg.nl", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0003-3005-730X"))
