@@ -54,7 +54,7 @@ jk_volcano <- function(df, #dataframe
 
   df %>%
     dplyr::filter(FDR<0.05 & abs(Log2FC) > fc_thres) %>%
-    dplyr::select(Log2FC) %>% max() %>% abs() %>%
+    dplyr::select(Log2FC) %>% abs() %>% max() %>% 
     {.->> volcano_plot_limits}
 
   df %>%
