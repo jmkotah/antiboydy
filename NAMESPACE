@@ -2,6 +2,7 @@
 
 export("%>%")
 export(ES_bw_gain)
+export(jk_4wayplot)
 export(jk_sharedDE)
 export(jk_volcano)
 export(outlier.jk)
