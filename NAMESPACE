@@ -2,8 +2,11 @@
 
 export("%>%")
 export(ES_bw_gain)
+export(jk_sharedDE)
 export(jk_volcano)
 export(outlier.jk)
+importFrom(dplyr,"%>%")
+importFrom(dplyr,count)
 importFrom(ggplot2,aes)
 importFrom(ggplot2,annotate)
 importFrom(ggplot2,element_text)
