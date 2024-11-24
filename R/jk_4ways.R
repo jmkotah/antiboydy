@@ -108,10 +108,8 @@ dataframe1 %>%
 #' @param contrast_1 name of the contrast in dataframe1, x axis label
 #' @param contrast_2 name of the contrast in dataframe2, y axis label
 #' @param label_size font size for gene name labels
-#' @param right_text = "test1_up",
-#' @param left_text = "test1_down",
-#' @param up_text = "test2_up",
-#' @param down_text text to  "test2_down",
+#' @param right_group name of experimental group on the right side (x > fc_thres) of x-axis
+#' @param up_group  name of experimental group on the upper side (y > fc_thres) of y-axis
 #' @param segment_trans transparency of the line that connects gene label to the plot of the gene, default is 0.3 (with 0 being fully transparent, and 1 fully opaque)
 #' @param unity_alpha =1,
 #' @param aspect aspect ratio of plot, default is 12/16,
@@ -123,9 +121,6 @@ dataframe1 %>%
 #' @importFrom ggrepel geom_text_repel
 #' @importFrom dplyr %>% count
 #' @examples jk_4wayplot(df1, df2, fc_col = "log2FC", fdr_col = "qVal", genenames=FALSE) #basic fourway plot from two DE tables, no genes labeled
-#'
-#'
-
 
 jk_4wayplot <- function(dataframe1,
                         dataframe2,
@@ -136,34 +131,30 @@ jk_4wayplot <- function(dataframe1,
                         plot_fourway = TRUE,
                         genenames = TRUE,
                         label_shared_sig = FALSE,
-                        color_mode = "quadrants", #overlap or quadrants
+                        color_mode = "overlap", #overlap or quadrants
                         symmetry = TRUE, #for axis symmetry
                         color_axes = TRUE,
-
-
                         color_x_up = "#4d528f",
                         color_x_down = "#a3a1c3",
                         color_y_up = "#de5b6c",
                         color_y_down = "#f3acb0",
-
                         color_x = "#9A9ABC",
                         color_y = "#F6A6A9",
-
                         color_both = "black",
                         color_ignore = "grey",
                         max_overlaps = 20,
                         contrast_1 = "Contrast1_Name",
                         contrast_2 = "Contrast2_Name",
                         label_size = 2.5, #gene name size
-                        right_text = "test1_up",
-                        left_text = "test1_down",
-                        up_text = "test2_up",
-                        down_text = "test2_down",
+                        right_group = "group1",
+                        up_group = "group2",
                         segment_trans = 0.3,
                         unity_alpha =1,
                         aspect = 12/16,
                         point_size = 2,
                         plot_title = "Significantly altered genes/proteins in both contrasts") {
+
+  if (!color_mode %in% c("overlap", "quadrants")) stop("color_mode can only be either 'overlap' or 'quadrants'")
 
   jk_sharedDE(dataframe1, dataframe2, fc_col = fc_col, fdr_col = fdr_col) %>%
     mutate(Sig.x = FDR.x < fdr_thres,
@@ -172,31 +163,38 @@ jk_4wayplot <- function(dataframe1,
                                      Sig.x == FALSE & Sig.y == TRUE & abs(Log2FC.y) > fc_thres ~ "Sig_in_Y",
                                      Sig.x == TRUE & Sig.y == TRUE & abs(Log2FC.x) > fc_thres & abs(Log2FC.y) > fc_thres  ~ "Sig_in_Both",
                                      T ~ "Ignore")) %>%
-
     mutate(color_quadrants = case_when(Sig.x == TRUE & Sig.y == FALSE & Log2FC.x > fc_thres ~ "Up.X",
                                        Sig.x == TRUE & Sig.y == FALSE & Log2FC.x < -1*fc_thres ~ "Down.X",
                                        Sig.y == TRUE & Sig.x == FALSE & Log2FC.y > fc_thres ~ "Up.Y",
                                        Sig.y == TRUE & Sig.x == FALSE & Log2FC.y < -1*fc_thres ~ "Down.Y",
                                        Sig.x == TRUE & Sig.y == FALSE & Log2FC.x > fc_thres ~ "Up.X",
-                                       Sig.x == TRUE & Sig.y == TRUE & abs(Log2FC.x) > fc_thres & abs(Log2FC.y) > fc_thres ~ "SigBoth",
-                                       Sig.x == FALSE & Sig.y == FALSE ~ "Ignore",
+                                       Sig.x == TRUE & Sig.y == TRUE & abs(Log2FC.x) > fc_thres & abs(Log2FC.y) > fc_thres ~ "Sig_in_Both",
+                                       T ~ "Ignore",
                                        abs(Log2FC.x) < fc_thres & abs(Log2FC.y) < fc_thres ~ "Ignore")
            ) %>%
-    mutate(SigBothFilter = color_quadrants == "SigBoth") %>%
-    mutate(color_overlap = factor(color_overlap, levels=c("Sig_in_X",
+    mutate(SigBothFilter = color_quadrants == "Sig_in_Both") %>%
+    mutate(color_overlap = factor(color_overlap, levels=c("Ignore",
+                                                          "Sig_in_X",
                                                           "Sig_in_Y",
-                                                          "Sig_in_Both",
-                                                          "Ignore"
+                                                          "Sig_in_Both"
                                                           ))
            ) %>%
-    mutate(color_quadrants = factor(color_quadrants, levels = c("Up.X",
+    mutate(color_quadrants = factor(color_quadrants, levels = c("Ignore",
+                                                                "Up.X",
                                                                 "Up.Y",
-                                                                "SigBoth",
                                                                 "Down.X",
                                                                 "Down.Y",
-                                                                "Ignore"))
+                                                                "Sig_in_Both"
+                                                                ))
            ) %>%
     mutate(Label = color_quadrants %in% c("Up.X", "Down.X", "Up.Y", "Down.Y")) -> fourway_df
+
+  if(color_mode == "overlap"){
+    fourway_df = fourway_df %>% arrange(color_overlap) #sort so that 'ignored' points plotted first
+  }
+  if(color_mode == "quadrants"){
+    fourway_df = fourway_df %>% arrange(color_quadrants) #sort so that 'ignored' points plotted first
+    }
 
   if(plot_fourway == FALSE){
     return(fourway_df)
@@ -244,9 +242,7 @@ jk_4wayplot <- function(dataframe1,
       }
 
       plot_fourway <- fourway_df %>%
-        ggplot(., aes(x=Log2FC.x, y=Log2FC.y, #color=color_quadrants,
-                      label=Gene)) +
-        #geom_point(size = point_size) +
+        ggplot(., aes(x=Log2FC.x, y=Log2FC.y, label=Gene)) +
         geom_hline(yintercept = (fc_thres), color="#898989", linetype = "dashed") +
         geom_hline(yintercept = -1*(fc_thres), color="#898989", linetype = "dashed") +
         geom_vline(xintercept = (fc_thres), color="#898989", linetype = "dashed") +
@@ -266,49 +262,38 @@ jk_4wayplot <- function(dataframe1,
                            limits = c(min_lim_x, max_lim_x))
 
       if(color_mode == "overlap"){
-        if (nrow(fourway_df %>% filter(color_overlap == "Ignore"))>0){
-          plot_fourway = plot_fourway +geom_point(data = subset(fourway_df, color_overlap == "Ignore"), color = color_ignore, size = point_size)
-          }
         plot_fourway = plot_fourway +
-          geom_point(data = subset(fourway_df, color_overlap == "Sig_in_X"), color = color_x, size = point_size) +
-          geom_point(data = subset(fourway_df, color_overlap == "Sig_in_Y"), color = color_y, size = point_size) +
-          geom_point(data = subset(fourway_df, color_overlap == "Sig_in_Both"), color = color_both, size = point_size) +
-          scale_color_manual(values = c(color_x,
+          geom_point(aes(color=color_overlap),size = point_size) +
+          scale_color_manual(values = c(color_ignore,
+                                        color_x,
                                         color_y,
-                                        color_both,
-                                        color_ignore),
-                             labels = c(paste0("Sig. in ", contrast_1, " (n=", n_sig_x, ")"),
+                                        color_both
+                                        ),
+                             labels = c("Below FC/FDR thresholds",
+                                        paste0("Sig. in ", contrast_1, " (n=", n_sig_x, ")"),
                                         paste0("Sig. in ", contrast_2," (n=",n_sig_y,")"),
-                                        paste0("Sig. in both (n=",n_sig_both,")"),
-                                        "")
-          )
+                                        paste0("Sig. in both (n=",n_sig_both,")")
+                                        )
+                             )
         }
       if(color_mode=="quadrants") {
-        if (nrow(fourway_df %>% filter(color_quadrants == "Ignore"))>0){
-          plot_fourway = plot_fourway +geom_point(data = subset(fourway_df, color_quadrants == "Ignore"), color = color_ignore, size = point_size)
-        }
         plot_fourway = plot_fourway +
-          geom_point(data = subset(fourway_df, color_quadrants == "Up.X"), color = color_x_up, size = point_size) +
-          geom_point(data = subset(fourway_df, color_quadrants == "Up.Y"), color = color_y_up, size = point_size) +
-          geom_point(data = subset(fourway_df, color_quadrants == "Down.X"), color = color_x_down, size = point_size) +
-          geom_point(data = subset(fourway_df, color_quadrants == "Down.Y"), color = color_y_down, size = point_size) +
-          geom_point(data = subset(fourway_df, color_quadrants == "Sig_in_Both"), color = color_both, size = point_size)
-
-
-        # plot_fourway = plot_fourway + geom_point(aes(color = color_quadrants), size = point_size) +
-        #   scale_color_manual(values = c(color_x_up,
-        #                                 color_y_up,
-        #                                 color_both,
-        #                                 color_x_down,
-        #                                 color_y_down,
-        #                                 color_ignore),
-        #                      labels = c(paste0("Up in ", right_text, " (n=", n_sig_x_up, ")"),
-        #                                 paste0("Up in ", up_text," (n=",n_sig_y_up,")"),
-        #                                 paste0("Sig. in both (n=",n_sig_both,")"),
-        #                                 paste0("Down in ", right_text, " (n=", n_sig_x_down, ")"),
-        #                                 paste0("Down in ", up_text," (n=",n_sig_y_down,")"),
-        #                                 "")
-        #   ) +
+          geom_point(aes(color=color_quadrants),size = point_size) +
+          scale_color_manual(values = c(color_ignore,
+                                        color_x_up,
+                                        color_y_up,
+                                        color_x_down,
+                                        color_y_down,
+                                        color_both
+                                        ),
+                             labels = c("Below FC/FDR thresholds",
+                                        paste0("Up in ", right_group, " (n=", n_sig_x_up, ")"),
+                                        paste0("Up in ", up_group," (n=",n_sig_y_up,")"),
+                                        paste0("Down in ", right_group, " (n=", n_sig_x_down, ")"),
+                                        paste0("Down in ", up_group," (n=",n_sig_y_down,")"),
+                                        paste0("Sig. in both (n=",n_sig_both,")")
+                                        )
+                             )
       }
 
       if (color_axes==TRUE){
@@ -355,43 +340,90 @@ jk_4wayplot <- function(dataframe1,
             ylab(paste0(contrast_2)) +
             ggtitle(paste0(plot_title))
 
-      # +
-      #
-      #   #rightside
-      #   annotate(geom="text", x = xmargin.max,
-      #            label = paste0("Up in ", right_text),
-      #            y =four_way_plot_min.y*0.9,
-      #            size = 3,
-      #            hjust=1,
-      #            fontface =2,
-      #            color = color_x_up) +
-      #   #upper side
-      #   annotate(geom="text", y = ymargin.max,
-      #            label = paste0("Up in ", up_text),
-      #            x =four_way_plot_min.x*0.9,
-      #            size = 3,
-      #            hjust=0,
-      #            angle = 270,
-      #            fontface =2,
-      #            color = color_y_up)  +
-      #   #leftside
-      #   annotate(geom="text", x = four_way_plot_min.x,
-      #            label = paste0("  ",left_text),
-      #            y =four_way_plot_min.y*0.9,
-      #            size = 3,
-      #            hjust=0,
-      #            fontface =2,
-      #            color = color_x_down) +
-      #   #down side
-      #   annotate(geom="text", y = 0,
-      #            label = paste0(down_text, "  "),
-      #            x =four_way_plot_min.x*0.9,
-      #            size = 3,
-      #            hjust=0,
-      #            angle = 270,
-      #            fontface =2,
-      #            color = color_y_down)
-
       return(plot_fourway)
     }
   }
+
+#unused code from prev versions
+
+# labeling by color
+# plot_fourway = plot_fourway + geom_point(aes(color = color_quadrants), size = point_size) +
+#   scale_color_manual(values = c(color_x_up,
+#                                 color_y_up,
+#                                 color_both,
+#                                 color_x_down,
+#                                 color_y_down,
+#                                 color_ignore),
+#                      labels = c(paste0("Up in ", right_text, " (n=", n_sig_x_up, ")"),
+#                                 paste0("Up in ", up_text," (n=",n_sig_y_up,")"),
+#                                 paste0("Sig. in both (n=",n_sig_both,")"),
+#                                 paste0("Down in ", right_text, " (n=", n_sig_x_down, ")"),
+#                                 paste0("Down in ", up_text," (n=",n_sig_y_down,")"),
+#                                 "")
+#   ) +
+
+# adding text
+# +
+#
+#   #rightside
+#   annotate(geom="text", x = xmargin.max,
+#            label = paste0("Up in ", right_text),
+#            y =four_way_plot_min.y*0.9,
+#            size = 3,
+#            hjust=1,
+#            fontface =2,
+#            color = color_x_up) +
+#   #upper side
+#   annotate(geom="text", y = ymargin.max,
+#            label = paste0("Up in ", up_text),
+#            x =four_way_plot_min.x*0.9,
+#            size = 3,
+#            hjust=0,
+#            angle = 270,
+#            fontface =2,
+#            color = color_y_up)  +
+#   #leftside
+#   annotate(geom="text", x = four_way_plot_min.x,
+#            label = paste0("  ",left_text),
+#            y =four_way_plot_min.y*0.9,
+#            size = 3,
+#            hjust=0,
+#            fontface =2,
+#            color = color_x_down) +
+#   #down side
+#   annotate(geom="text", y = 0,
+#            label = paste0(down_text, "  "),
+#            x =four_way_plot_min.x*0.9,
+#            size = 3,
+#            hjust=0,
+#            angle = 270,
+#            fontface =2,
+#            color = color_y_down)
+
+# unused different way to plot points, couldnt figure how to make work with legends
+# if (nrow(fourway_df %>% filter(color_overlap == "Ignore"))>0){
+#   plot_fourway = plot_fourway +geom_point(data = subset(fourway_df, color_overlap == "Ignore"), color = color_ignore, size = point_size)
+# }
+# plot_fourway = plot_fourway +
+# geom_point(data = subset(fourway_df, color_overlap == "Sig_in_X"), color = color_x, size = point_size) +
+# geom_point(data = subset(fourway_df, color_overlap == "Sig_in_Y"), color = color_y, size = point_size) +
+# geom_point(data = subset(fourway_df, color_overlap == "Sig_in_Both"), color = color_both, size = point_size) +
+# scale_color_manual(values = c(color_x,
+#                               color_y,
+#                               color_both,
+#                               color_ignore),
+#                    labels = c(paste0("Sig. in ", contrast_1, " (n=", n_sig_x, ")"),
+#                               paste0("Sig. in ", contrast_2," (n=",n_sig_y,")"),
+#                               paste0("Sig. in both (n=",n_sig_both,")"),
+#                               "")
+#)
+
+# if (nrow(fourway_df %>% filter(color_quadrants == "Ignore"))>0){
+#   plot_fourway = plot_fourway +geom_point(data = subset(fourway_df, color_quadrants == "Ignore"), color = color_ignore, size = point_size)
+# }
+#plot_fourway = plot_fourway +
+  # geom_point(data = subset(fourway_df, color_quadrants == "Up.X"), color = color_x_up, size = point_size) +
+  # geom_point(data = subset(fourway_df, color_quadrants == "Up.Y"), color = color_y_up, size = point_size) +
+  # geom_point(data = subset(fourway_df, color_quadrants == "Down.X"), color = color_x_down, size = point_size) +
+  # geom_point(data = subset(fourway_df, color_quadrants == "Down.Y"), color = color_y_down, size = point_size) +
+  # geom_point(data = subset(fourway_df, color_quadrants == "Sig_in_Both"), color = color_both, size = point_size) +

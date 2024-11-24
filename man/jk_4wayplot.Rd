@@ -14,7 +14,7 @@ jk_4wayplot(
   plot_fourway = TRUE,
   genenames = TRUE,
   label_shared_sig = FALSE,
-  color_mode = "quadrants",
+  color_mode = "overlap",
   symmetry = TRUE,
   color_axes = TRUE,
   color_x_up = "#4d528f",
@@ -29,10 +29,8 @@ jk_4wayplot(
   contrast_1 = "Contrast1_Name",
   contrast_2 = "Contrast2_Name",
   label_size = 2.5,
-  right_text = "test1_up",
-  left_text = "test1_down",
-  up_text = "test2_up",
-  down_text = "test2_down",
+  right_group = "group1",
+  up_group = "group2",
   segment_trans = 0.3,
   unity_alpha = 1,
   aspect = 12/16,
@@ -89,13 +87,9 @@ jk_4wayplot(
 
 \item{label_size}{font size for gene name labels}
 
-\item{right_text}{= "test1_up",}
+\item{right_group}{name of experimental group on the right side (x > fc_thres) of x-axis}
 
-\item{left_text}{= "test1_down",}
-
-\item{up_text}{= "test2_up",}
-
-\item{down_text}{text to  "test2_down",}
+\item{up_group}{name of experimental group on the upper side (y > fc_thres) of y-axis}
 
 \item{segment_trans}{transparency of the line that connects gene label to the plot of the gene, default is 0.3 (with 0 being fully transparent, and 1 fully opaque)}
 
@@ -115,6 +109,4 @@ JK Fourway Plot
 }
 \examples{
 jk_4wayplot(df1, df2, fc_col = "log2FC", fdr_col = "qVal", genenames=FALSE) #basic fourway plot from two DE tables, no genes labeled
-
-
 }

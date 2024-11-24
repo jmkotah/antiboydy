@@ -1,13 +1,16 @@
 # antiboydy
 R package of functions used during my PhD
 
-Last updated: 2024-11-23
+Last updated: 2024-11-24
+
+Required packages: dplyr, ggplot2, ggrepel
 
 To install:
 1) Make sure you have the devtools package installed in R: <i>install.packages("devtools")</i>
 2) Install this package with the following command: <i>devtools::install_github("https://github.com/jmkotah/antiboydy/")</i>
+3) Load package <i>library(antiboydy)</i>
 
-For suggestions/comments, contact me at j.m.kotah@umcg.nl
+For suggestions/comments, contact me at j.m.kotah@umcg.nl or open an issue.
 
 Currently available functions:
 1) JK_outlier: detects outliers using the IQR method
