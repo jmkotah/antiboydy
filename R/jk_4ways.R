@@ -8,9 +8,10 @@
 #' @param fdr_thres threshold of p/q/FDR value to plot, default 0.05
 #' @return A data frame with shared significant genes/proteins across two contrasts, ready for plotting 4-ways
 #' @export
-#' @importFrom ggplot2 aes geom_point geom_hline geom_vline element_text scale_y_continuous scale_x_continuous expansion geom_segment annotate xlab
-#' @importFrom ggrepel geom_text_repel
-#' @importFrom dplyr %>% count
+#' @import ggplot2
+#' @import ggrepel
+#' @import dplyr
+#' @importFrom rlang .data
 #' @examples jk_sharedDE(testvol, fc_col = "log2FC", fdr_col = "qVal") #basic volcano plot using dataframe "testvol"
 #' @examples jk_sharedDE(testvol, fc_col = "log2FC", fdr_col = "qVal", genenames = FALSE) #basic volcano plot with unlabeled points
 #'
@@ -25,24 +26,31 @@ jk_sharedDE <- function (dataframe1,
 
 
 #code developed for Log2FC and FDR, so renaming everything as such; in principle works with Log10FC, or p-val instead of FDR
-names(dataframe1)[names(dataframe1) == {{fc_col}}] <- "Log2FC"
-names(dataframe1)[names(dataframe1) == {{fdr_col}}] <- "FDR"
 names(dataframe1)[names(dataframe1) == {{gene_col}}] <- "Gene"
+names(dataframe1)[names(dataframe1) == {{fc_col}}] <- "FC"
+names(dataframe1)[names(dataframe1) == {{fdr_col}}] <- "FDR"
 
-names(dataframe2)[names(dataframe2) == {{fc_col}}] <- "Log2FC"
-names(dataframe2)[names(dataframe2) == {{fdr_col}}] <- "FDR"
 names(dataframe2)[names(dataframe2) == {{gene_col}}] <- "Gene"
+names(dataframe2)[names(dataframe2) == {{fc_col}}] <- "FC"
+names(dataframe2)[names(dataframe2) == {{fdr_col}}] <- "FDR"
+# ^2024-11-28 change column reference
 
+
+#2024-11-28 add direction column to fix bug
+dataframe1 = dataframe1 %>% dplyr::mutate(Direction = ifelse(FC > 0,
+                                                      "UP", "DOWN"))
+dataframe2 = dataframe2 %>% dplyr::mutate(Direction = ifelse(FC > 0,
+                                                      "UP", "DOWN"))
 
 dataframe1 %>%
-  group_by(Gene) %>%
-  count() %>% filter(n>1) %>%
+  dplyr::group_by(Gene) %>%
+  dplyr::count() %>% filter(n>1) %>%
   dplyr::select(Gene) %>% unlist() %>%
   {.->>multiples.df1}
 
 dataframe2 %>%
-  group_by(Gene) %>%
-  count() %>% filter(n>1) %>%
+  dplyr::group_by(Gene) %>%
+  dplyr::count() %>% filter(n>1) %>%
   dplyr::select(Gene) %>% unlist() %>%
   {.->>multiples.df2}
 
@@ -58,14 +66,14 @@ multiples <- unique(c(multiples.df1, multiples.df2))
 
 dataframe1 %>%
   filter(!Gene %in% multiples) %>%
-  filter(abs(Log2FC) > fc_thres,
+  filter(abs(FC) > fc_thres,
          FDR < fdr_thres) %>%
   dplyr::select(Gene) %>% unlist() %>% {.->>sig_prot_a}
 
 
 dataframe2 %>%
   filter(!Gene %in% multiples) %>%
-  filter(abs(Log2FC) > fc_thres,
+  filter(abs(FC) > fc_thres,
          FDR < fdr_thres) %>%
   dplyr::select(Gene) %>% unlist() %>% {.->>sig_prot_b}
 
@@ -75,10 +83,10 @@ joined_df_name <- data.frame()
 
 dataframe1 %>%
   filter(Gene %in% sig_prot_filter) %>%
-  dplyr::select(Gene, Log2FC, FDR, Direction) %>%
+  dplyr::select(Gene, FC, FDR, Direction) %>%
   rbind(joined_df_name) %>%
   inner_join(dataframe2, by = c("Gene" = "Gene")) %>%
-  dplyr::select(Gene, Log2FC.x, Log2FC.y, FDR.x, FDR.y, Direction.x, Direction.y) %>%
+  dplyr::select(Gene, FC.x, FC.y, FDR.x, FDR.y, Direction.x, Direction.y) %>%
   return()
 }
 
@@ -86,6 +94,7 @@ dataframe1 %>%
 #'
 #' @param dataframe1 first dataframe, will correspond to "X" axis of four-way
 #' @param dataframe2 second dataframe, will correspond to "Y" axis of four-way
+#' @param gene_col column with gene names
 #' @param fc_col column with fold change info to be plotted, usually Log2-FC or Log-FC
 #' @param fdr_col column with p-value/q-value/FDR value info to be plotted
 #' @param fc_thres threshold of fold change to consider. Default is 0 because preference is to still plot genes below the FC threshold as gray.
@@ -115,16 +124,19 @@ dataframe1 %>%
 #' @param aspect aspect ratio of plot, default is 12/16,
 #' @param point_size size of points when plotted, default 2
 #' @param plot_title the title for the plot
+#' @param ... passed to jk_sharedDE
 #' @return A data frame with shared significant genes/proteins across two contrasts, ready for plotting 4-ways
 #' @export
-#' @importFrom ggplot2 aes geom_point geom_hline geom_vline element_text scale_y_continuous scale_x_continuous expansion geom_segment annotate xlab
-#' @importFrom ggrepel geom_text_repel
-#' @importFrom dplyr %>% count
+#' @import ggplot2
+#' @import ggrepel
+#' @import dplyr
+#' @importFrom rlang .data
 #' @examples jk_4wayplot(df1, df2, fc_col = "log2FC", fdr_col = "qVal", genenames=FALSE) #basic fourway plot from two DE tables, no genes labeled
 
 jk_4wayplot <- function(dataframe1,
                         dataframe2,
-                        fc_col = "log2FC", #fold change column
+                        gene_col = "Gene",
+                        fc_col = "Log2FC", #fold change column
                         fdr_col = "FDR", #p or q value column
                         fc_thres = 0.01,
                         fdr_thres = 0.05,
@@ -152,34 +164,35 @@ jk_4wayplot <- function(dataframe1,
                         unity_alpha =1,
                         aspect = 12/16,
                         point_size = 2,
-                        plot_title = "Significantly altered genes/proteins in both contrasts") {
+                        plot_title = "Significantly altered genes/proteins in both contrasts",
+                        ...) {
 
   if (!color_mode %in% c("overlap", "quadrants")) stop("color_mode can only be either 'overlap' or 'quadrants'")
 
-  jk_sharedDE(dataframe1, dataframe2, fc_col = fc_col, fdr_col = fdr_col) %>%
-    mutate(Sig.x = FDR.x < fdr_thres,
+  jk_sharedDE(dataframe1, dataframe2, fc_col = fc_col, fdr_col = fdr_col, gene_col = gene_col) %>%
+    dplyr::mutate(Sig.x = FDR.x < fdr_thres,
            Sig.y = FDR.y < fdr_thres) %>%
-    mutate(color_overlap = case_when(Sig.x == TRUE & Sig.y == FALSE & abs(Log2FC.x) > fc_thres ~ "Sig_in_X",
-                                     Sig.x == FALSE & Sig.y == TRUE & abs(Log2FC.y) > fc_thres ~ "Sig_in_Y",
-                                     Sig.x == TRUE & Sig.y == TRUE & abs(Log2FC.x) > fc_thres & abs(Log2FC.y) > fc_thres  ~ "Sig_in_Both",
+    dplyr::mutate(color_overlap = case_when(Sig.x == TRUE & Sig.y == FALSE & abs(FC.x) > fc_thres ~ "Sig_in_X",
+                                     Sig.x == FALSE & Sig.y == TRUE & abs(FC.y) > fc_thres ~ "Sig_in_Y",
+                                     Sig.x == TRUE & Sig.y == TRUE & abs(FC.x) > fc_thres & abs(FC.y) > fc_thres  ~ "Sig_in_Both",
                                      T ~ "Ignore")) %>%
-    mutate(color_quadrants = case_when(Sig.x == TRUE & Sig.y == FALSE & Log2FC.x > fc_thres ~ "Up.X",
-                                       Sig.x == TRUE & Sig.y == FALSE & Log2FC.x < -1*fc_thres ~ "Down.X",
-                                       Sig.y == TRUE & Sig.x == FALSE & Log2FC.y > fc_thres ~ "Up.Y",
-                                       Sig.y == TRUE & Sig.x == FALSE & Log2FC.y < -1*fc_thres ~ "Down.Y",
-                                       Sig.x == TRUE & Sig.y == FALSE & Log2FC.x > fc_thres ~ "Up.X",
-                                       Sig.x == TRUE & Sig.y == TRUE & abs(Log2FC.x) > fc_thres & abs(Log2FC.y) > fc_thres ~ "Sig_in_Both",
+    dplyr::mutate(color_quadrants = case_when(Sig.x == TRUE & Sig.y == FALSE & FC.x > fc_thres ~ "Up.X",
+                                       Sig.x == TRUE & Sig.y == FALSE & FC.x < -1*fc_thres ~ "Down.X",
+                                       Sig.y == TRUE & Sig.x == FALSE & FC.y > fc_thres ~ "Up.Y",
+                                       Sig.y == TRUE & Sig.x == FALSE & FC.y < -1*fc_thres ~ "Down.Y",
+                                       Sig.x == TRUE & Sig.y == FALSE & FC.x > fc_thres ~ "Up.X",
+                                       Sig.x == TRUE & Sig.y == TRUE & abs(FC.x) > fc_thres & abs(FC.y) > fc_thres ~ "Sig_in_Both",
                                        T ~ "Ignore",
-                                       abs(Log2FC.x) < fc_thres & abs(Log2FC.y) < fc_thres ~ "Ignore")
+                                       abs(FC.x) < fc_thres & abs(FC.y) < fc_thres ~ "Ignore")
            ) %>%
-    mutate(SigBothFilter = color_quadrants == "Sig_in_Both") %>%
-    mutate(color_overlap = factor(color_overlap, levels=c("Ignore",
+    dplyr::mutate(SigBothFilter = color_quadrants == "Sig_in_Both") %>%
+    dplyr::mutate(color_overlap = factor(color_overlap, levels=c("Ignore",
                                                           "Sig_in_X",
                                                           "Sig_in_Y",
                                                           "Sig_in_Both"
                                                           ))
            ) %>%
-    mutate(color_quadrants = factor(color_quadrants, levels = c("Ignore",
+    dplyr::mutate(color_quadrants = factor(color_quadrants, levels = c("Ignore",
                                                                 "Up.X",
                                                                 "Up.Y",
                                                                 "Down.X",
@@ -187,7 +200,7 @@ jk_4wayplot <- function(dataframe1,
                                                                 "Sig_in_Both"
                                                                 ))
            ) %>%
-    mutate(Label = color_quadrants %in% c("Up.X", "Down.X", "Up.Y", "Down.Y")) -> fourway_df
+    dplyr::mutate(Label = color_quadrants %in% c("Up.X", "Down.X", "Up.Y", "Down.Y")) -> fourway_df
 
   if(color_mode == "overlap"){
     fourway_df = fourway_df %>% arrange(color_overlap) #sort so that 'ignored' points plotted first
@@ -200,10 +213,10 @@ jk_4wayplot <- function(dataframe1,
     return(fourway_df)
     } else{
 
-      fourway_df %>% dplyr::select(Log2FC.x) %>% max() -> four_way_plot_max.x
-      fourway_df %>% dplyr::select(Log2FC.y) %>% max() -> four_way_plot_max.y
-      fourway_df %>% dplyr::select(Log2FC.x) %>% min() -> four_way_plot_min.x
-      fourway_df %>% dplyr::select(Log2FC.y) %>% min() -> four_way_plot_min.y
+      fourway_df %>% dplyr::select(FC.x) %>% max() -> four_way_plot_max.x
+      fourway_df %>% dplyr::select(FC.y) %>% max() -> four_way_plot_max.y
+      fourway_df %>% dplyr::select(FC.x) %>% min() -> four_way_plot_min.x
+      fourway_df %>% dplyr::select(FC.y) %>% min() -> four_way_plot_min.y
 
       fourway_df %>% filter(color_overlap == "Sig_in_Both") %>% nrow() -> n_sig_both
       fourway_df %>% filter(color_overlap == "Sig_in_X") %>% nrow() -> n_sig_x
@@ -242,7 +255,7 @@ jk_4wayplot <- function(dataframe1,
       }
 
       plot_fourway <- fourway_df %>%
-        ggplot(., aes(x=Log2FC.x, y=Log2FC.y, label=Gene)) +
+        ggplot(., aes(x=FC.x, y=FC.y, label=Gene)) +
         geom_hline(yintercept = (fc_thres), color="#898989", linetype = "dashed") +
         geom_hline(yintercept = -1*(fc_thres), color="#898989", linetype = "dashed") +
         geom_vline(xintercept = (fc_thres), color="#898989", linetype = "dashed") +
@@ -310,8 +323,8 @@ jk_4wayplot <- function(dataframe1,
       if (genenames == TRUE){
         if(label_shared_sig == TRUE){
           plot_fourway <- plot_fourway + geom_text_repel(data = fourway_df,
-                                                         aes(x = Log2FC.x,
-                                                             y = Log2FC.y,
+                                                         aes(x = FC.x,
+                                                             y = FC.y,
                                                              fontface = "bold",
                                                              label = ifelse(SigBothFilter == TRUE , Gene,"")),
                                                          size=label_size,
@@ -322,8 +335,8 @@ jk_4wayplot <- function(dataframe1,
                                                          min.segment.length = 0.25)
           } else {
             plot_fourway <- plot_fourway + geom_text_repel(data = fourway_df,
-                                                           aes(x = Log2FC.x,
-                                                               y = Log2FC.y,
+                                                           aes(x = FC.x,
+                                                               y = FC.y,
                                                                fontface = "bold",
                                                                label = ifelse(Label == TRUE , Gene,"")),
                                                            size=label_size,
@@ -427,3 +440,9 @@ jk_4wayplot <- function(dataframe1,
   # geom_point(data = subset(fourway_df, color_quadrants == "Down.X"), color = color_x_down, size = point_size) +
   # geom_point(data = subset(fourway_df, color_quadrants == "Down.Y"), color = color_y_down, size = point_size) +
   # geom_point(data = subset(fourway_df, color_quadrants == "Sig_in_Both"), color = color_both, size = point_size) +
+
+#importinf full packages
+# @importFrom ggplot2 aes geom_point geom_hline geom_vline element_text scale_y_continuous scale_x_continuous expansion geom_segment annotate xlab
+# @importFrom ggrepel geom_text_repel
+# @importFrom dplyr count case_when
+# @importFrom magrittr %>%

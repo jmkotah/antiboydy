@@ -13,6 +13,8 @@
 #'
 #' @return Returns a dataframe of P9 - P2 body weights either at the pup or nest level.
 #' @export
+#' @importFrom rlang .data
+#' @importFrom magrittr %>%#'
 #' @examples #generate test column with simulated values
 #' @examples test_df <- data.frame(PupID = rep("Test",10),Condition = rep("CTL", 10), BWP2 = runif(10, 1.5, 3.5), BWP9 = runif(10, 4, 5.2), Sex = c(rep("m", 5),  rep("f", 5)), Dam = c(rep("F01",3), rep("F02",3), rep("F01",2), rep("F02",2)))
 #' @examples ES_bw_gain(test_df) #generates a column BW_gain of P9 - avgP2 weights per pup

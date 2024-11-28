@@ -1,6 +1,7 @@
 #' JK Volcano Plot v1
 #'
 #' @param df dataframe to be plotted
+#' @param gene_col column with Gene symbols
 #' @param fc_col column with fold change info to be plotted, usually Log2-FC or Log-FC
 #' @param fdr_col column with p-value/q-value/FDR value info to be plotted
 #' @param fc_thres threshold of fold change to plot
@@ -10,6 +11,7 @@
 #' @param aspect aspect ratio to use, can be expressed as decimal or fraction; default is 1
 #' @param color_left color of dots on the left side of the volcano plot
 #' @param color_right color of dots on the right side of the volcano plot
+#' @param color_nonsig color of filtered out dots on the volcano plot
 #' @param point_size size of dots in plot
 #' @param label_size size of labels in plot
 #' @param xmargin added to the color
@@ -21,11 +23,16 @@
 #' @param contrast_text_size size of text from 'right_text' and 'left_text'
 #' @return A volcano plot showing significantly up/downregulated genes or proteins
 #' @export
-#' @importFrom ggplot2 aes geom_point geom_hline geom_vline element_text scale_y_continuous scale_x_continuous expansion geom_segment annotate xlab
-#' @importFrom ggrepel geom_text_repel
+#' @import ggplot2
+#' @import ggrepel
+#' @import dplyr
+#' @importFrom magrittr %>%
+#' @importFrom rlang .data
 #' @examples jk_volcano(testvol, fc_col = "log2FC", fdr_col = "qVal") #basic volcano plot using dataframe "testvol"
 #' @examples jk_volcano(testvol, fc_col = "log2FC", fdr_col = "qVal", genenames = FALSE) #basic volcano plot with unlabeled points
+
 jk_volcano <- function(df, #dataframe
+                       gene_col = "Gene",
                        fc_col, #fold change column
                        fdr_col, #p or q value column
                        fc_thres = 0.1, #foldchange cutoff
@@ -36,6 +43,7 @@ jk_volcano <- function(df, #dataframe
                        aspect = 1, #aspect ratio to use
                        color_left = "#de5b6c",
                        color_right = "#4d528f",
+                       color_nonsig = "grey",
                        point_size = 1.25, #size of volcano points
                        label_size = 2.5,
                        xmargin = 0.1,
@@ -48,43 +56,44 @@ jk_volcano <- function(df, #dataframe
                        contrast_text_size =4
 ) {
 
-  #code developed for Log2FC and FDR, so renaming everything as such; in principle works with Log10FC, or p-val instead of FDR
-  names(df)[names(df) == {{fc_col}}] <- "Log2FC"
+  fc_thres = abs(fc_thres) #code assumes threshold given as a positive number
+
+  #code developed for colnames Gene Log2FC and FDR, so renaming everything as such; in principle works with Log10FC, or p-val instead of FDR
+  #2024-11-28 it is difficult to dynamically refer to colnames, so just sticking to this strategy
+  names(df)[names(df) == {{gene_col}}] <- "Gene"
+  names(df)[names(df) == {{fc_col}}] <- "FC"
   names(df)[names(df) == {{fdr_col}}] <- "FDR"
 
-  df %>%
-    dplyr::filter(FDR<0.05 & abs(Log2FC) > fc_thres) %>%
-    dplyr::select(Log2FC) %>% abs() %>% max() %>% 
-    {.->> volcano_plot_limits}
+  volcano_plot_limits = df %>%
+    dplyr::filter(FDR < fdr_thres & abs(FC) > fc_thres) %>%
+    dplyr::select(FC) %>% abs() %>% max()
 
-  df %>%
-    dplyr::filter(FDR<0.05 & abs(Log2FC) > fc_thres) %>%
-    dplyr::select(FDR) %>% min() %>% -log10(.) %>%
-    {.->> pval_limit}
+  pval_limit = df %>%
+    dplyr::filter(FDR <fdr_thres & abs(FC) > fc_thres) %>%
+    dplyr::select(FDR) %>% min()
+  pval_limit = -log10(pval_limit)
 
-  df %>%
-    dplyr::mutate(filter = FDR<fdr_thres & abs(Log2FC) > fc_thres) %>%
-    dplyr::mutate(filter1 = FDR<fdr_thres & Log2FC < -1* fc_thres) %>% #negative filter
-    dplyr::mutate(filter2 = FDR<fdr_thres & Log2FC > 1* fc_thres) %>% #positive filter
-    {.->>test.df}
+  test.df = df %>%
+    dplyr::mutate(filter = FDR <fdr_thres & abs(FC) > fc_thres) %>%
+    dplyr::mutate(filter1 = FDR <fdr_thres & FC < -1* fc_thres) %>% #negative filter
+    dplyr::mutate(filter2 = FDR <fdr_thres & FC > 1* fc_thres) #positive filter
 
   volcano_plot <- ggplot2::ggplot(test.df) +
     geom_point(data = subset(test.df, filter == FALSE),
-                        aes(x=Log2FC, y=-log10(FDR)), color = "gray", size = point_size) +
+                        aes(x=FC, y=-log10(FDR)), color = color_nonsig, size = point_size) +
     geom_point(data = subset(test.df, filter1 == TRUE),
-                        aes(x=Log2FC, y=-log10(FDR)), color = color_left, size = point_size) +
+                        aes(x=FC, y=-log10(FDR)), color = color_left, size = point_size) +
     geom_point(data = subset(test.df, filter2 == TRUE),
-                        aes(x=Log2FC, y=-log10(FDR)), color = color_right, size = point_size) +
+                        aes(x=FC, y=-log10(FDR)), color = color_right, size = point_size) +
 
     geom_hline(yintercept=-log10(fdr_thres), linetype="dashed", color = "grey") +
     geom_vline(xintercept=(fc_thres), linetype="dashed", color = "grey") +
     geom_vline(xintercept=-1*(fc_thres), linetype="dashed", color = "grey")
 
 
-
   if (genenames == TRUE){
     volcano_plot <- volcano_plot +
-      ggrepel::geom_text_repel(aes(x = Log2FC,
+      ggrepel::geom_text_repel(aes(x = FC,
                           y = -log10(FDR),
                           label = ifelse(filter1 == T, Gene,"")),
                       size=label_size,
@@ -98,19 +107,20 @@ jk_volcano <- function(df, #dataframe
                       #force_pull = 0,
                       min.segment.length = 0.25) +
 
-      ggrepel::geom_text_repel(aes(x = Log2FC,
+      ggrepel::geom_text_repel(aes(x = FC,
                           y = -log10(FDR),
                           label =  ifelse(filter2 == T, Gene,"")),
-                      size=label_size,
-                      max.overlaps = max_overlap,
-                      segment.alpha = segment_trans,
-                      #nudge_x = 0.25,
-                      direction = "both",
-                      force = 1,
-                      xlim = c(fc_thres/2, NA),
-                      ylim = c(1.3, NA),
-                      #force_pull = 1,
-                      min.segment.length = 0.25) }
+                          size=label_size,
+                          max.overlaps = max_overlap,
+                          segment.alpha = segment_trans,
+                          #nudge_x = 0.25,
+                          direction = "both",
+                          force = 1,
+                          xlim = c(fc_thres/2, NA),
+                          ylim = c(1.3, NA),
+                          #force_pull = 1,
+                          min.segment.length = 0.25)
+    }
 
 
   volcano_plot <- volcano_plot +
@@ -119,15 +129,15 @@ jk_volcano <- function(df, #dataframe
           plot.title = element_text(hjust = 0.5, face = "bold"),
           aspect.ratio = aspect) +
 
-    ggplot2::xlab(expression(paste(Log[2], " Fold Change"))) +
+    ggplot2::xlab(expression(paste(Log[FC_log], " Fold Change"))) +
     ggplot2::ylab(expression(paste("-",Log[10]," (FDR corrected p-value)"))) +
     ggplot2::xlim(c(-1*(volcano_plot_limits+xmargin),volcano_plot_limits+xmargin)) +
     ggplot2::ggtitle(paste0(contrast_name))
-
-  if (FC_log == 10){
-    volcano_plot <- volcano_plot +
-      xlab(expression(paste(Log[10], " Fold Change")))
-  }
+#
+#   if (FC_log == 10){
+#     volcano_plot <- volcano_plot +
+#       xlab(expression(paste(Log[10], " Fold Change")))
+#   }
 
 
   volcano_plot <- volcano_plot +

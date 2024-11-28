@@ -6,6 +6,7 @@
 \usage{
 jk_volcano(
   df,
+  gene_col = "Gene",
   fc_col,
   fdr_col,
   fc_thres = 0.1,
@@ -15,6 +16,7 @@ jk_volcano(
   aspect = 1,
   color_left = "#de5b6c",
   color_right = "#4d528f",
+  color_nonsig = "grey",
   point_size = 1.25,
   label_size = 2.5,
   xmargin = 0.1,
@@ -28,6 +30,8 @@ jk_volcano(
 }
 \arguments{
 \item{df}{dataframe to be plotted}
+
+\item{gene_col}{column with Gene symbols}
 
 \item{fc_col}{column with fold change info to be plotted, usually Log2-FC or Log-FC}
 
@@ -46,6 +50,8 @@ jk_volcano(
 \item{color_left}{color of dots on the left side of the volcano plot}
 
 \item{color_right}{color of dots on the right side of the volcano plot}
+
+\item{color_nonsig}{color of filtered out dots on the volcano plot}
 
 \item{point_size}{size of dots in plot}
 
@@ -72,6 +78,5 @@ A volcano plot showing significantly up/downregulated genes or proteins
 JK Volcano Plot v1
 }
 \examples{
-jk_volcano(testvol, fc_col = "log2FC", fdr_col = "qVal") #basic volcano plot using dataframe "testvol"
 jk_volcano(testvol, fc_col = "log2FC", fdr_col = "qVal", genenames = FALSE) #basic volcano plot with unlabeled points
 }

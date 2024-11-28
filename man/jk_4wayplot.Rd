@@ -7,7 +7,8 @@
 jk_4wayplot(
   dataframe1,
   dataframe2,
-  fc_col = "log2FC",
+  gene_col = "Gene",
+  fc_col = "Log2FC",
   fdr_col = "FDR",
   fc_thres = 0.01,
   fdr_thres = 0.05,
@@ -35,13 +36,16 @@ jk_4wayplot(
   unity_alpha = 1,
   aspect = 12/16,
   point_size = 2,
-  plot_title = "Significantly altered genes/proteins in both contrasts"
+  plot_title = "Significantly altered genes/proteins in both contrasts",
+  ...
 )
 }
 \arguments{
 \item{dataframe1}{first dataframe, will correspond to "X" axis of four-way}
 
 \item{dataframe2}{second dataframe, will correspond to "Y" axis of four-way}
+
+\item{gene_col}{column with gene names}
 
 \item{fc_col}{column with fold change info to be plotted, usually Log2-FC or Log-FC}
 
@@ -100,6 +104,8 @@ jk_4wayplot(
 \item{point_size}{size of points when plotted, default 2}
 
 \item{plot_title}{the title for the plot}
+
+\item{...}{passed to jk_sharedDE}
 }
 \value{
 A data frame with shared significant genes/proteins across two contrasts, ready for plotting 4-ways
