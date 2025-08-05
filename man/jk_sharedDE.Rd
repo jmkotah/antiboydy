@@ -19,6 +19,8 @@ jk_sharedDE(
 
 \item{dataframe2}{second dataframe, will correspond to "Y" axis of four-way}
 
+\item{gene_col}{column with gene names}
+
 \item{fc_col}{column with fold change info to be plotted, usually Log2-FC or Log-FC}
 
 \item{fdr_col}{column with p-value/q-value/FDR value info to be plotted}
@@ -35,7 +37,7 @@ JK Fourway Dataframe
 }
 \examples{
 jk_sharedDE(testvol, fc_col = "log2FC", fdr_col = "qVal") #basic volcano plot using dataframe "testvol"
-jk_sharedDE(testvol, fc_col = "log2FC", fdr_col = "qVal", genenames = FALSE) #basic volcano plot with unlabeled points
+jk_sharedDE(testvol, fc_col = "log2FC", fdr_col = "qVal", genenames = FALSE) #basic volcano plot using dataframe "testvol" with unlabeled points
 
 
 }

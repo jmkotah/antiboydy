@@ -23,7 +23,8 @@ jk_4wayplot(
   color_y_down = "#f3acb0",
   color_x = "#9A9ABC",
   color_y = "#F6A6A9",
-  color_both = "black",
+  color_both_same = "black",
+  color_both_diff = "blue",
   color_ignore = "grey",
   max_overlaps = 20,
   contrast_1 = "Contrast1_Name",
@@ -75,7 +76,9 @@ jk_4wayplot(
 
 \item{color_y}{for color_mode "overlap", color for points in dataframe 2}
 
-\item{color_both}{for either color mode, sets color for genes significant in both dataframes}
+\item{color_both_same}{for either color mode, sets color for genes significant in the same direction from both dataframes}
+
+\item{color_both_diff}{for either color mode, sets color for genes significant in the different directions from both dataframes}
 
 \item{color_ignore}{for either color mode, sets color for genes to be ignored (usually because they pass significance but are below FC thres)}
 

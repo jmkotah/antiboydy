@@ -6,6 +6,7 @@
 \usage{
 jk_volcano(
   df,
+  gene_col = "Gene",
   fc_col,
   fdr_col,
   fc_thres = 0.1,
@@ -17,6 +18,9 @@ jk_volcano(
   color_right = "#4d528f",
   point_size = 1.25,
   label_size = 2.5,
+  highlight_genes = FALSE,
+  highlight_list = NULL,
+  highlight_color = "skyblue",
   xmargin = 0.1,
   genenames = TRUE,
   max_overlap = 10,
@@ -28,6 +32,8 @@ jk_volcano(
 }
 \arguments{
 \item{df}{dataframe to be plotted}
+
+\item{gene_col}{column with gene names}
 
 \item{fc_col}{column with fold change info to be plotted, usually Log2-FC or Log-FC}
 
@@ -51,9 +57,15 @@ jk_volcano(
 
 \item{label_size}{size of labels in plot}
 
+\item{highlight_genes}{boolean, whether only specific gene/protein names should be displayed, default is FALSE}
+
+\item{highlight_list}{if highlight_genes is TRUE, provide a list of gene/protein names to display}
+
+\item{highlight_color}{if highlight_genes is TRUE, what color to use for the points corresponding to gene/protein names provided in highlight_list}
+
 \item{xmargin}{added to the color}
 
-\item{genenames}{TRUE/FALSE, whether gene/protein names should be displayed next to dots, default is TRUE}
+\item{genenames}{boolean, whether gene/protein names should be displayed next to dots, default is TRUE}
 
 \item{max_overlap}{Maximum number of gene names to try to plot, based on geom_text_repel}
 
