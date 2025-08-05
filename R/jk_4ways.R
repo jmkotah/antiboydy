@@ -186,12 +186,6 @@ jk_4wayplot <- function(dataframe1,
     mutate(SigBothFilter = color_quadrants %in% c("SigBoth_same", "SigBoth_different")) %>%
     mutate(Label = color_quadrants %in% c("Up.X", "Down.X", "Up.Y", "Down.Y"))
 
-  if(color_mode == "overlap"){
-    fourway_df = fourway_df %>% arrange(color_overlap) #sort so that 'ignored' points plotted first
-  }
-  if(color_mode == "quadrants"){
-    fourway_df = fourway_df %>% arrange(color_quadrants) #sort so that 'ignored' points plotted first
-  }
 
   if (label_mode == "highlight") {
     fourway_df = fourway_df %>% dplyr::mutate(highlight_filter = Gene %in% highlight_list)
