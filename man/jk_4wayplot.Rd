@@ -13,8 +13,8 @@ jk_4wayplot(
   fdr_thres = 0.05,
   plot_fourway = TRUE,
   genenames = TRUE,
-  label_shared_sig = FALSE,
-  color_mode = "overlap",
+  label_mode = "all",
+  color_mode = "quadrants",
   symmetry = TRUE,
   color_axes = TRUE,
   color_x_up = "#4d528f",
@@ -30,6 +30,8 @@ jk_4wayplot(
   contrast_1 = "Contrast1_Name",
   contrast_2 = "Contrast2_Name",
   label_size = 2.5,
+  highlight_list = NULL,
+  highlight_color = "skyblue",
   right_group = "group1",
   up_group = "group2",
   segment_trans = 0.3,
@@ -56,7 +58,7 @@ jk_4wayplot(
 
 \item{genenames}{boolean of whether gene names should be plotted on fourway}
 
-\item{label_shared_sig}{boolean of whether labeled genes are those unique to each contrast (by default, obtained when this param is FALSE), or if shared sig genes are labeled (occurs if this param == TRUE)}
+\item{label_mode}{if labeling genes, what method (either \link{shared}, showing shared significant genes, \link{unique}, showing genes significant in only one contrast, \link{highlight}, showing a select list of genes, or \link{all} genes. Default is "all".}
 
 \item{color_mode}{affects if points are colored by either "overlap" (i.e., shared or unique between the two contrasts; default) or "quadrants" (includes direction per contrast as well)}
 
@@ -89,6 +91,10 @@ jk_4wayplot(
 \item{contrast_2}{name of the contrast in dataframe2, y axis label}
 
 \item{label_size}{font size for gene name labels}
+
+\item{highlight_list}{if label_mode is 'highlight', provide a list of gene/protein names to display}
+
+\item{highlight_color}{if label_mode is 'highlight', what color to use for the points corresponding to gene/protein names provided in highlight_list}
 
 \item{right_group}{name of experimental group on the right side (x > fc_thres) of x-axis}
 

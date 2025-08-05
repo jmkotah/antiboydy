@@ -94,7 +94,7 @@ dataframe1 %>%
 #' @param fdr_thres threshold of p/q/FDR value to plot, default 0.05
 #' @param genenames boolean of whether gene names should be plotted on fourway
 #' @param plot_fourway boolean of whether to return the fourway plot, or simply return the final dataframe generate
-#' @param label_shared_sig boolean of whether labeled genes are those unique to each contrast (by default, obtained when this param is FALSE), or if shared sig genes are labeled (occurs if this param == TRUE)
+#' @param label_mode if labeling genes, what method (either [shared], showing shared significant genes, [unique], showing genes significant in only one contrast, [highlight], showing a select list of genes, or [all] genes. Default is "all".
 #' @param color_mode affects if points are colored by either "overlap" (i.e., shared or unique between the two contrasts; default) or "quadrants" (includes direction per contrast as well)
 #' @param symmetry boolean of whether the coordinates should resemble a square (i.e., same values above and below 0 per axis, obtained when param is TRUE) or not
 #' @param color_axes boolean, default TRUE, of whether axes should be colored or not; uses the same colors used in color_mode quadrant
@@ -111,6 +111,8 @@ dataframe1 %>%
 #' @param contrast_1 name of the contrast in dataframe1, x axis label
 #' @param contrast_2 name of the contrast in dataframe2, y axis label
 #' @param label_size font size for gene name labels
+#' @param highlight_list if label_mode is 'highlight', provide a list of gene/protein names to display
+#' @param highlight_color if label_mode is 'highlight', what color to use for the points corresponding to gene/protein names provided in highlight_list
 #' @param right_group name of experimental group on the right side (x > fc_thres) of x-axis
 #' @param up_group  name of experimental group on the upper side (y > fc_thres) of y-axis
 #' @param segment_trans transparency of the line that connects gene label to the plot of the gene, default is 0.3 (with 0 being fully transparent, and 1 fully opaque)
@@ -133,8 +135,8 @@ jk_4wayplot <- function(dataframe1,
                         fdr_thres = 0.05,
                         plot_fourway = TRUE,
                         genenames = TRUE,
-                        label_shared_sig = FALSE,
-                        color_mode = "overlap", #overlap or quadrants
+                        label_mode = "all",
+                        color_mode = "quadrants", #overlap or quadrants
                         symmetry = TRUE, #for axis symmetry
                         color_axes = TRUE,
                         color_x_up = "#4d528f",
@@ -150,6 +152,8 @@ jk_4wayplot <- function(dataframe1,
                         contrast_1 = "Contrast1_Name",
                         contrast_2 = "Contrast2_Name",
                         label_size = 2.5, #gene name size
+                        highlight_list = NULL,
+                        highlight_color = "skyblue",
                         right_group = "group1",
                         up_group = "group2",
                         segment_trans = 0.3,
@@ -187,7 +191,11 @@ jk_4wayplot <- function(dataframe1,
   }
   if(color_mode == "quadrants"){
     fourway_df = fourway_df %>% arrange(color_quadrants) #sort so that 'ignored' points plotted first
-    }
+  }
+
+  if (label_mode == "highlight") {
+    fourway_df = fourway_df %>% dplyr::mutate(highlight_filter = Gene %in% highlight_list)
+  }
 
   if(plot_fourway == FALSE){
     return(fourway_df)
@@ -282,32 +290,67 @@ jk_4wayplot <- function(dataframe1,
           ggplot2::annotate(geom='segment',x = min_lim_x, xend = min_lim_x, y = 0, yend = max_lim_y, linewidth=2, color = color_y_up)
         }
 
+
       if (genenames == TRUE){
-        if(label_shared_sig == TRUE){
+        if (!label_mode %in% c("all", "shared", "unique", "highlight")) stop("label_mode can only be either 'all', 'shared', 'unique', or 'highlight'")
+
+        if (label_mode == "highlight") {
+          plot_fourway <- plot_fourway + ggplot2::geom_point(data=fourway_df[fourway_df$highlight_filter == T,],
+                                                             aes(x = Log2FC.x, y = Log2FC.y),
+                                                             color=highlight_color,
+                                                             size = point_size, stroke =1)
+          plot_fourway <- plot_fourway + ggrepel::geom_text_repel(aes(x = Log2FC.x, y = Log2FC.y,
+                                                                      label = ifelse(highlight_filter == T, Gene,"")),
+                                                                  size=label_size,
+                                                                  max.overlaps = max_overlaps,
+                                                                  segment.alpha = segment_trans,
+                                                                  direction = "both",
+                                                                  force = 1,
+                                                                  min.segment.length = 0.25)
+          }
+
+
+        if(label_mode == "shared"){
           plot_fourway <- plot_fourway + geom_text_repel(data = fourway_df,
                                                          aes(x = Log2FC.x,
                                                              y = Log2FC.y,
                                                              fontface = "bold",
                                                              label = ifelse(SigBothFilter == TRUE , Gene,"")),
                                                          size=label_size,
-                                                         max.overlaps = max_overlaps, #set to inf
+                                                         max.overlaps = max_overlaps,
                                                          segment.alpha = segment_trans,
                                                          direction = "both",
                                                          force = 15,
                                                          min.segment.length = 0.25)
-          } else {
-            plot_fourway <- plot_fourway + geom_text_repel(data = fourway_df,
+          }
+        if (label_mode == "unique"){
+        plot_fourway <- plot_fourway + geom_text_repel(data = fourway_df,
                                                            aes(x = Log2FC.x,
                                                                y = Log2FC.y,
                                                                fontface = "bold",
                                                                label = ifelse(Label == TRUE , Gene,"")),
                                                            size=label_size,
-                                                           max.overlaps = max_overlaps, #set to inf
+                                                           max.overlaps = max_overlaps,
                                                            segment.alpha = segment_trans,
                                                            direction = "both",
                                                            force = 15,
                                                            min.segment.length = 0.25)
-          }
+        }
+
+        if (label_mode == "all"){
+          plot_fourway <- plot_fourway + geom_text_repel(data = fourway_df,
+                                                         aes(x = Log2FC.x,
+                                                             y = Log2FC.y,
+                                                             fontface = "bold",
+                                                             label = Gene),
+                                                         size=label_size,
+                                                         max.overlaps = max_overlaps,
+                                                         segment.alpha = segment_trans,
+                                                         direction = "both",
+                                                         force = 15,
+                                                         min.segment.length = 0.25)
+        }
+
       }
 
       plot_fourway <- plot_fourway +
