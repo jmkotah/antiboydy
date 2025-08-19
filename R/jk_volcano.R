@@ -67,6 +67,7 @@ jk_volcano <- function(df, #dataframe
 
   df %>%
     dplyr::filter(FDR<0.05 & abs(Log2FC) > fc_thres) %>%
+    dplyr::filter(FDR != 0) %>% #need to filter out extremely small pvals that round to 0 because log-transforming this will lead to infinite values
     dplyr::select(FDR) %>% min() %>% -log10(.) %>%
     {.->> pval_limit}
 
